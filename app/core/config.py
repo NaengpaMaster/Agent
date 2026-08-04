@@ -15,7 +15,7 @@ class Settings:
     agent_host: str
     agent_port: int
 
-
+# 설정값 재사용용 캐시
 @lru_cache
 def get_settings() -> Settings:
     return Settings(
