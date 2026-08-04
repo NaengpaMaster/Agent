@@ -11,13 +11,20 @@ Python FastAPI 기반 AI Agent 서버입니다.
 ## Setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+conda create -n naengpa-agent python=3.12
+conda activate naengpa-agent
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
 `.env` 파일에 실제 `OPENAI_API_KEY` 값을 입력합니다.
+
+이미 conda 환경을 생성한 경우에는 아래 명령어부터 실행합니다.
+
+```bash
+conda activate naengpa-agent
+pip install -r requirements.txt
+```
 
 ## Run
 
