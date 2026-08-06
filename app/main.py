@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.shopping_recommendations import router as shopping_recommendation_router
 
 app = FastAPI(
     title="NaengpaMaster Agent",
@@ -9,3 +10,4 @@ app = FastAPI(
 )
 
 app.include_router(health_router)
+app.include_router(shopping_recommendation_router)

@@ -38,12 +38,23 @@ uvicorn app.main:app --reload
 GET /health
 ```
 
+## Shopping Recommendation
+
+```text
+POST /agent/v1/shopping/recommendations
+```
+
+백엔드가 냉장고 재료, 장보기 재료, 추천 후보 재료를 전달하면 Agent가 장보기 추천 목록을 반환합니다.
+
+`OPENAI_API_KEY`가 없거나 LLM 호출에 실패하면 후보 재료 기준 fallback 응답을 반환합니다.
+
 ## Project Structure
 
 ```text
 app
 ├── api
-│   └── health.py
+│   ├── health.py
+│   └── shopping_recommendations.py
 ├── core
 │   └── config.py
 ├── schemas
