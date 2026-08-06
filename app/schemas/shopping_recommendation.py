@@ -12,10 +12,12 @@ class AgentProduct(BaseModel):
 
 class ShoppingRecommendationRequest(BaseModel):
     # limit: 추천 개수
+    # favoriteFoods: 회원 프로필에 등록된 선호 음식 기준
     # fridgeItems: 이미 냉장고에 있는 재료
     # shoppingItems: 이미 장보기 목록에 있는 재료
     # candidateProducts: 백엔드가 추천 후보로 허용한 활성 사전 재료
     limit: int = 5
+    favorite_foods: list[str] = Field(default_factory=list, alias="favoriteFoods")
     fridge_items: list[AgentProduct] = Field(default_factory=list, alias="fridgeItems")
     shopping_items: list[AgentProduct] = Field(default_factory=list, alias="shoppingItems")
     candidate_products: list[AgentProduct] = Field(default_factory=list, alias="candidateProducts")
