@@ -14,6 +14,7 @@ class Settings:
     backend_base_url: str
     agent_host: str
     agent_port: int
+    agent_api_key: str
 
 # 설정값 재사용용 캐시
 @lru_cache
@@ -24,4 +25,5 @@ def get_settings() -> Settings:
         backend_base_url=os.getenv("BACKEND_BASE_URL", "http://localhost:8080"),
         agent_host=os.getenv("AGENT_HOST", "0.0.0.0"),
         agent_port=int(os.getenv("AGENT_PORT", "8000")),
+        agent_api_key=os.environ["AGENT_API_KEY"],
     )
