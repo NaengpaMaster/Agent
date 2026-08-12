@@ -10,6 +10,8 @@ from app.schemas.receipt_analysis import (
     ReceiptAnalyzeRequest,
     ReceiptAnalyzeResponse,
 )
+from app.services.ingredient_vision_prompt import build_ingredient_vision_prompt
+from app.services.shopping_recommendation_service import _extract_usage
 
 
 def analyze_receipt(request: ReceiptAnalyzeRequest) -> ReceiptAnalyzeResponse:
@@ -43,32 +45,15 @@ def analyze_receipt(request: ReceiptAnalyzeRequest) -> ReceiptAnalyzeResponse:
     except APIError as exc:
         raise HTTPException(status_code=502, detail="OpenAI Vision 호출에 실패했습니다.") from exc
 
-    return _parse_response(response.output_text)
+    return _parse_response(response.output_text, _extract_usage(response, settings.openai_model))
 
 
 def _build_prompt() -> str:
-    return """
+    return build_ingredient_vision_prompt("""
 영수증 이미지에서 식재료 후보만 추출해.
 브랜드명, 상품 시리즈명, 원산지, 바코드, 제조사명, 용량, 중량, 가격, 행사 문구, 할인 문구는 제거해.
-가능하면 순수 식재료명만 반환해.
-예: 국산 팽이버섯 -> 팽이버섯
-예: 찹쌀이 콩나물 -> 콩나물
-예: 빙그레 굿모닝우유 저지방 -> 우유
 상품명이 식재료가 아니면 제외해.
-수량이 보이면 그대로 쓰고, 수량을 알 수 없으면 "1개"로 써.
-응답은 설명 없이 JSON 객체만 반환해.
-
-형식:
-{
-  "rawText": "영수증에서 읽은 전체 텍스트",
-  "items": [
-    {
-      "name": "감자",
-      "quantity": "1개"
-    }
-  ]
-}
-"""
+""")
 
 
 def _to_data_url(mime_type: str, image_base64: str) -> str:
@@ -87,7 +72,7 @@ def _validate_base64_image(image_base64: str) -> None:
         raise HTTPException(status_code=400, detail="유효한 base64 이미지 문자열이 아닙니다.") from exc
 
 
-def _parse_response(output_text: str) -> ReceiptAnalyzeResponse:
+def _parse_response(output_text: str, usage) -> ReceiptAnalyzeResponse:
     # 모델이 ```json ... ``` 형태로 감싸도 JSON만 꺼내 파싱한다.
     try:
         data = json.loads(_strip_code_block(output_text))
@@ -106,6 +91,7 @@ def _parse_response(output_text: str) -> ReceiptAnalyzeResponse:
     return ReceiptAnalyzeResponse(
         rawText=data.get("rawText", ""),
         items=items,
+        usage=usage,
     )
 
 
@@ -127,4 +113,5 @@ def _fallback_response() -> ReceiptAnalyzeResponse:
                 quantity="1개",
             )
         ],
+        usage=_extract_usage(None, get_settings().openai_model),
     )
