@@ -1,0 +1,78 @@
+name: Build and Deploy FastAPI to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: restaurant-agent-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: naengpa-dev-ai-agent
+  CONTAINER_PORT: "8000"
+  S3_BUCKET_NAME: naengpa-dev-storage
+  EB_APP_NAME: naengpa-agent
+  EB_ENV_NAME: Naengpa-agent-env
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+      - name: Create Elastic Beanstalk bundle
+        run: |
+          jq -n \
+            --arg image "$IMAGE_URI" \
+            --arg port "$CONTAINER_PORT" \
+            '{
+              AWSEBDockerrunVersion: "1",
+              Image: {Name: $image, Update: "true"},
+              Ports: [{ContainerPort: $port}]
+            }' > Dockerrun.aws.json
+          zip -j deployment.zip Dockerrun.aws.json
+
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          VERSION_LABEL="agent-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA::7}"
+          S3_KEY="deploy/$VERSION_LABEL.zip"
+
+          aws s3 cp deployment.zip "s3://$S3_BUCKET_NAME/$S3_KEY"
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APP_NAME" \
+            --version-label "$VERSION_LABEL" \
+            --source-bundle "S3Bucket=$S3_BUCKET_NAME,S3Key=$S3_KEY"
+          aws elasticbeanstalk update-environment \
+            --environment-name "$EB_ENV_NAME" \
+            --version-label "$VERSION_LABEL"
+          aws elasticbeanstalk wait environment-updated \
+            --environment-name "$EB_ENV_NAME"
