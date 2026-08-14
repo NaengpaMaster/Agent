@@ -1,4 +1,6 @@
 import json
+import logging
+import time
 from decimal import Decimal
 
 from openai import OpenAI
@@ -16,6 +18,7 @@ GPT_4_1_MINI_MODEL = "gpt-4.1-mini"
 GPT_4_1_MINI_INPUT_PRICE_PER_1M = Decimal("0.40")
 GPT_4_1_MINI_OUTPUT_PRICE_PER_1M = Decimal("1.60")
 TOKENS_PER_MILLION = Decimal("1000000")
+logger = logging.getLogger("uvicorn.error")
 
 
 def recommend_shopping_items(
@@ -37,10 +40,19 @@ def recommend_shopping_items(
     try:
         # 실제 LLM 호출 지점. 백엔드가 전달한 후보 재료 안에서만 추천하도록 prompt를 구성
         client = OpenAI(api_key=settings.openai_api_key)
-        response = client.responses.create(
-            model=settings.openai_model,
-            input=_build_prompt(request, limit),
-        )
+        started_at = time.perf_counter()
+        try:
+            response = client.responses.create(
+                model=settings.openai_model,
+                input=_build_prompt(request, limit),
+            )
+        finally:
+            logger.info(
+                "shopping OpenAI call elapsed_ms=%.1f candidate_count=%d limit=%d",
+                (time.perf_counter() - started_at) * 1000,
+                len(request.candidate_products),
+                limit,
+            )
 
         items = _parse_items(response.output_text, request.candidate_products, limit)
         usage = _extract_usage(response, settings.openai_model)
