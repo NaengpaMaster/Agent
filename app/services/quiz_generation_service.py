@@ -17,7 +17,18 @@ def generate_quiz(ingredient: str) -> dict:
     )
 
     raw_text = _strip_code_block(response.choices[0].message.content)
-    return json.loads(raw_text)
+    quiz_data = json.loads(raw_text)
+
+    return {
+        **quiz_data,
+        "usage":{
+            "model": MODEL,
+            "promptTokens": response.usage.prompt_tokens,
+            "completionTokens": response.usage.completion_tokens,
+            "totalTokens": response.usage.total_tokens,
+        }
+    }
+
 
 # LLM이 마크다운 문법(코드 블록, ```으로 감싸는 것)을 지우고 순수 JSON만 남김
 def _strip_code_block(text: str) -> str:
