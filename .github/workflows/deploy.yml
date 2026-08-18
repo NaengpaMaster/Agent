@@ -59,7 +59,8 @@ jobs:
               Image: {Name: $image, Update: "true"},
               Ports: [{ContainerPort: $port}]
             }' > Dockerrun.aws.json
-          zip -j deployment.zip Dockerrun.aws.json
+          zip deployment.zip Dockerrun.aws.json
+          zip -r deployment.zip .ebextensions
 
       - name: Deploy to Elastic Beanstalk
         run: |
