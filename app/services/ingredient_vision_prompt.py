@@ -27,10 +27,13 @@ PROCESSED_FOOD_NORMALIZATION_PROMPT = """
 
 INGREDIENT_JSON_FORMAT_PROMPT = """
 응답은 설명 없이 JSON 객체만 반환해.
+이미지에서 직접 읽히지 않은 상품명은 절대 만들지 마.
+아래 예시는 정제 규칙 설명용이며, 이미지에 없는 예시 품목을 응답에 포함하지 마.
+영수증 텍스트를 읽을 수 없으면 rawText는 빈 문자열, items는 빈 배열로 반환해.
 
 형식:
 {
-  "rawText": "이미지에서 읽거나 관찰한 전체 텍스트 또는 재료 요약",
+  "rawText": "이미지에서 실제로 읽은 전체 텍스트",
   "items": [
     {
       "name": "감자",
@@ -44,6 +47,10 @@ INGREDIENT_JSON_FORMAT_PROMPT = """
 def build_ingredient_vision_prompt(task_prompt: str) -> str:
     return f"""
 {task_prompt.strip()}
+
+이미지에 실제로 적힌 상품만 추출해.
+확신할 수 없는 상품명은 제외해.
+프롬프트에 포함된 예시나 대표 재료 목록을 추측해서 반환하지 마.
 
 {PROCESSED_FOOD_NORMALIZATION_PROMPT.strip()}
 

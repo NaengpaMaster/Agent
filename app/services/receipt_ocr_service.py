@@ -10,7 +10,6 @@ from app.schemas.receipt_analysis import (
     ReceiptAnalyzeRequest,
     ReceiptAnalyzeResponse,
 )
-from app.services.ingredient_vision_prompt import build_ingredient_vision_prompt
 from app.services.shopping_recommendation_service import _extract_usage
 
 
@@ -49,11 +48,29 @@ def analyze_receipt(request: ReceiptAnalyzeRequest) -> ReceiptAnalyzeResponse:
 
 
 def _build_prompt() -> str:
-    return build_ingredient_vision_prompt("""
-영수증 이미지에서 식재료 후보만 추출해.
-브랜드명, 상품 시리즈명, 원산지, 바코드, 제조사명, 용량, 중량, 가격, 행사 문구, 할인 문구는 제거해.
-상품명이 식재료가 아니면 제외해.
-""")
+    return """
+너는 영수증 OCR 엔진이다.
+이미지에 실제로 보이는 텍스트만 읽어라.
+이미지에 없는 상품명은 절대 추측하거나 생성하지 마라.
+영수증 텍스트를 읽을 수 없거나 상품명이 보이지 않으면 rawText는 "", items는 []로 반환해라.
+
+작업:
+1. 영수증의 상품명 라인을 읽는다.
+2. 식재료 또는 식품으로 볼 수 있는 상품만 items에 넣는다.
+3. 브랜드명, 원산지, 용량, 중량, 가격, 바코드, 행사/할인 문구는 상품명에서 제거한다.
+4. 수량이 보이면 그대로 쓰고, 수량을 알 수 없으면 "1개"로 쓴다.
+
+반드시 아래 JSON 형식만 반환해라.
+{
+  "rawText": "이미지에서 실제로 읽은 전체 텍스트",
+  "items": [
+    {
+      "name": "상품명에서 정제한 식재료명",
+      "quantity": "1개"
+    }
+  ]
+}
+"""
 
 
 def _to_data_url(mime_type: str, image_base64: str) -> str:
@@ -104,14 +121,9 @@ def _strip_code_block(text: str) -> str:
 
 
 def _fallback_response() -> ReceiptAnalyzeResponse:
-    # 로컬 연결 확인용. OPENAI_API_KEY가 있으면 실제 Vision 호출 경로를 탄다.
+    # 키가 없을 때 가짜 재료를 만들면 실제 OCR처럼 오해될 수 있어 빈 결과만 반환한다.
     return ReceiptAnalyzeResponse(
-        rawText="fallback OCR result",
-        items=[
-            ReceiptAnalyzeItemResponse(
-                name="감자",
-                quantity="1개",
-            )
-        ],
+        rawText="",
+        items=[],
         usage=_extract_usage(None, get_settings().openai_model),
     )
